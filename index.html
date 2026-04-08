@@ -40,6 +40,7 @@
             text-decoration: none !important;
             transition: all 0.2s ease;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            cursor: pointer;
         }
 
         .action-card:hover {
@@ -76,8 +77,15 @@
             border: 1px solid #d0dceb;
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 20px;
             margin-bottom: 30px;
+        }
+
+        .user-info-flex {
+            display: flex;
+            align-items: center;
+            gap: 20px;
         }
 
         .user-avatar {
@@ -86,6 +94,12 @@
             border-radius: 6px;
             border: 3px solid #fff;
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            cursor: pointer;
+        }
+
+        .user-avatar:hover {
+            opacity: 0.8;
+            border-color: #ff9900;
         }
 
         /* Table Styles */
@@ -145,7 +159,7 @@
                 <ul>
                     <li><a href="https://www.engimo.org">Public Home</a></li>
                     <li><a href="#" style="background: rgba(0,0,0,0.15);">Dashboard</a></li>
-                    <li><a href="#">License Inventory</a></li>
+                    <li><a href="#" onclick="openClerkProfile('profile')">Security Settings</a></li>
                     <li><a href="#">Software Repository</a></li>
                     <li><a href="https://www.engimo.org/support.html">Support</a></li>
                 </ul>
@@ -154,11 +168,14 @@
             <div id="content-area">
                 <main>
                     <div class="user-summary">
-                        <img id="user-avatar" class="user-avatar" src="" alt="Client">
-                        <div>
-                            <h2 id="user-welcome" style="margin: 0; color: #1e5799;">Welcome, Client</h2>
-                            <p id="user-sub" style="font-size: 12px; color: #666;">Account active since 2011</p>
+                        <div class="user-info-flex">
+                            <img id="user-avatar" class="user-avatar" src="" alt="Client" onclick="openClerkProfile()" title="Change Profile Picture">
+                            <div>
+                                <h2 id="user-welcome" style="margin: 0; color: #1e5799;">Welcome, Client</h2>
+                                <p id="user-sub" style="font-size: 12px; color: #666;">Account active since 2011</p>
+                            </div>
                         </div>
+                        <button class="btn-small btn-blue" onclick="openClerkProfile()">Edit Profile</button>
                     </div>
 
                     <div class="portal-grid">
@@ -172,11 +189,12 @@
                             <strong>My Licenses</strong>
                             <span>3 active product keys</span>
                         </a>
-                        <a href="#" class="action-card">
-                            <i class="fa-solid fa-file-invoice"></i>
-                            <strong>Order History</strong>
-                            <span>View recent purchases</span>
-                        </a>
+                        <!-- Account Settings Trigger -->
+                        <div class="action-card" onclick="openClerkProfile()">
+                            <i class="fa-solid fa-user-shield"></i>
+                            <strong>Security & Identity</strong>
+                            <span>Change Password & Email</span>
+                        </div>
                     </div>
 
                     <h3>Authorized Software Repository</h3>
@@ -210,15 +228,19 @@
                     <div class="widget">
                         <div class="widget-header">Portal Security</div>
                         <div class="widget-content">
-                            <p style="font-size: 11px;">Your session is being managed by Clerk Identity Services. For your safety, sessions expire after 2 hours of inactivity.</p>
-                            <a href="#" id="sign-out-btn" class="btn-small btn-gray" style="margin-top: 10px; display: block; text-align: center;">Secure Sign Out</a>
+                            <p style="font-size: 11px;">Your session is being managed by Clerk Identity Services. For your safety, sessions expire after 7 days.</p>
+                            <a href="#" id="sign-out-btn" class="btn-small btn-gray" style="margin-top: 10px; display: block; text-align: center;">Securely Sign Out</a>
                         </div>
                     </div>
 
                     <div class="widget">
-                        <div class="widget-header">Technical Bulletin</div>
-                        <div class="widget-content" style="font-size: 11px;">
-                            <strong>Patch 2.4.1</strong> is scheduled for release next week. This update improves offline licensing for localized hardware IDs.
+                        <div class="widget-header">Account Controls</div>
+                        <div class="widget-content">
+                            <ul style="font-size: 11px; list-style: none;">
+                                <li style="margin-bottom: 5px;"><a href="javascript:void(0)" onclick="openClerkProfile()">Update Email</a></li>
+                                <li style="margin-bottom: 5px;"><a href="javascript:void(0)" onclick="openClerkProfile()">Change Password</a></li>
+                                <li><a href="javascript:void(0)" onclick="openClerkProfile()">Two-Factor Auth</a></li>
+                            </ul>
                         </div>
                     </div>
                 </aside>
@@ -245,28 +267,41 @@
             await Clerk.load();
 
             if (!Clerk.user) {
-                // If the user lands here and isn't logged in, 
-                // Clerk will redirect them to your Clerk-hosted 
-                // accounts.engimo.org sign-in page automatically.
                 Clerk.redirectToSignIn();
             } else {
-                // User is authenticated
                 document.getElementById('loading-overlay').style.display = 'none';
                 document.getElementById('auth-gate').style.display = 'block';
                 
-                // Populate custom UI
-                document.getElementById('user-welcome').innerText = "Welcome, " + (Clerk.user.firstName || "Client");
-                document.getElementById('user-sub').innerText = Clerk.user.primaryEmailAddress.emailAddress;
-                document.getElementById('user-avatar').src = Clerk.user.imageUrl;
+                updateUI();
 
-                // Mount profile button
                 Clerk.mountUserButton(document.getElementById('user-button-mount'));
 
                 document.getElementById('sign-out-btn').onclick = (e) => {
                     e.preventDefault();
                     Clerk.signOut();
                 };
+
+                // Listen for user updates (like profile pic changes) to refresh the UI
+                Clerk.addListener(({ user }) => {
+                    if (user) updateUI();
+                });
             }
+        }
+
+        function updateUI() {
+            const user = window.Clerk.user;
+            document.getElementById('user-welcome').innerText = "Welcome, " + (user.firstName || "Client");
+            document.getElementById('user-sub').innerText = user.primaryEmailAddress.emailAddress;
+            document.getElementById('user-avatar').src = user.imageUrl;
+        }
+
+        function openClerkProfile() {
+            // This opens the Clerk UserProfile modal which handles:
+            // 1. Password change
+            // 2. Email management (add/remove/verify)
+            // 3. Profile picture upload
+            // 4. Multi-factor authentication
+            window.Clerk.openUserProfile();
         }
     </script>
 </body>
